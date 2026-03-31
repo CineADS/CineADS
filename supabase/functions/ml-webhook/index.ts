@@ -54,8 +54,8 @@ serve(async (req) => {
     const xSignature = req.headers.get("x-signature") || "";
     const xRequestId = req.headers.get("x-request-id") || "";
 
-    // Verificar assinatura se o secret estiver configurado
-    const ML_WEBHOOK_SECRET = Deno.env.get("ML_WEBHOOK_SECRET");
+    // Verificar assinatura usando a mesma chave secreta do OAuth (ML_CLIENT_SECRET)
+    const ML_WEBHOOK_SECRET = Deno.env.get("ML_CLIENT_SECRET");
     if (ML_WEBHOOK_SECRET && xSignature) {
       let dataId: string | null = null;
       try {
