@@ -1,0 +1,34 @@
+project_id = "uhgznygademogtgkrjlp"
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.ml-exchange-token]
+verify_jwt = false
+
+[functions.ml-refresh-token]
+verify_jwt = false
+
+[functions.ml-sync-orders]
+verify_jwt = false
+
+[functions.ml-sync-stock]
+verify_jwt = false
+
+[functions.mlb-sync-categories]
+verify_jwt = false
+
+[functions.mlb-categories-api]
+verify_jwt = false
+
+[functions.ml-listing-ops]
+verify_jwt = false
+
+[functions.ml-webhook]
+verify_jwt = false
+
+[functions.ml-status]
+verify_jwt = false
+
+[functions.ml-get-token]
+verify_jwt = false

@@ -1,0 +1,1 @@
+ALTER TABLE public.marketplace_integrations ADD CONSTRAINT marketplace_integrations_tenant_marketplace_unique UNIQUE (tenant_id, marketplace);
