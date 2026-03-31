@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { crypto } from "https://deno.land/std@0.168.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,12 +8,80 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Verifica a assinatura HMAC-SHA256 enviada pelo Mercado Livre
+async function verifyMLSignature(
+  secret: string,
+  xSignature: string,
+  xRequestId: string,
+  dataId: string | null
+): Promise<boolean> {
+  try {
+    // Formato do manifesto conforme documentação do ML
+    const parts: string[] = [];
+    if (dataId) parts.push(`id:${dataId}`);
+    if (xRequestId) parts.push(`request-id:${xRequestId}`);
+    const tsMatch = xSignature.match(/ts=(\d+)/);
+    if (tsMatch) parts.push(`ts:${tsMatch[1]}`);
+
+    const manifest = parts.join(";");
+    const hashMatch = xSignature.match(/v1=([a-f0-9]+)/);
+    if (!hashMatch) return false;
+    const receivedHash = hashMatch[1];
+
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(manifest));
+    const expectedHash = Array.from(new Uint8Array(signature))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    return expectedHash === receivedHash;
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const body = await req.json();
-    const { resource, topic, user_id, application_id } = body;
+    const bodyText = await req.text();
+    const xSignature = req.headers.get("x-signature") || "";
+    const xRequestId = req.headers.get("x-request-id") || "";
+
+    // Verificar assinatura se o secret estiver configurado
+    const ML_WEBHOOK_SECRET = Deno.env.get("ML_WEBHOOK_SECRET");
+    if (ML_WEBHOOK_SECRET && xSignature) {
+      let dataId: string | null = null;
+      try {
+        const parsed = JSON.parse(bodyText);
+        dataId = parsed?.id ? String(parsed.id) : null;
+      } catch { /* ignora parse error aqui */ }
+
+      const valid = await verifyMLSignature(ML_WEBHOOK_SECRET, xSignature, xRequestId, dataId);
+      if (!valid) {
+        console.warn("ML webhook: assinatura inválida rejeitada");
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const body = JSON.parse(bodyText);
+    const { resource, topic, user_id } = body;
+
+    // Validar campos obrigatórios
+    if (!topic || !resource || !user_id) {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     console.log("ML webhook received:", JSON.stringify({ topic, resource, user_id }));
 
@@ -21,7 +90,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Find tenant by ML user_id stored in credentials
     const { data: integrations } = await supabase
       .from("marketplace_integrations")
       .select("id, tenant_id, credentials")
@@ -42,29 +110,34 @@ serve(async (req) => {
 
     const tenantId = integration.tenant_id;
     let jobType = "";
-    let jobPayload: Record<string, unknown> = { resource, topic, user_id };
+    let jobPayload: Record<string, unknown> = { topic, user_id };
 
     switch (topic) {
       case "orders_v2":
-      case "orders":
+      case "orders": {
+        const orderId = resource.replace("/orders/", "").trim();
+        if (!/^\d+$/.test(orderId)) break;
         jobType = "SYNC_ORDERS";
-        jobPayload.orderId = resource.replace("/orders/", "");
+        jobPayload.orderId = orderId;
         break;
-
-      case "items":
+      }
+      case "items": {
+        const itemId = resource.replace("/items/", "").trim();
+        if (!/^[A-Z0-9]+$/.test(itemId)) break;
         jobType = "SYNC_LISTING";
-        jobPayload.itemId = resource.replace("/items/", "");
+        jobPayload.itemId = itemId;
         break;
-
-      case "shipments":
+      }
+      case "shipments": {
+        const shipmentId = resource.replace("/shipments/", "").trim();
+        if (!/^\d+$/.test(shipmentId)) break;
         jobType = "SYNC_SHIPMENT";
-        jobPayload.shipmentId = resource.replace("/shipments/", "");
+        jobPayload.shipmentId = shipmentId;
         break;
-
+      }
       case "questions":
         jobType = "SYNC_QUESTIONS";
         break;
-
       default:
         console.log("Unhandled ML webhook topic:", topic);
         return new Response(JSON.stringify({ received: true }), {
@@ -72,7 +145,12 @@ serve(async (req) => {
         });
     }
 
-    // Enqueue sync job
+    if (!jobType) {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     await supabase.from("sync_jobs").insert({
       tenant_id: tenantId,
       marketplace: "Mercado Livre",

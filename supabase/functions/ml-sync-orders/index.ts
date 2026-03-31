@@ -39,12 +39,46 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Verificar autenticação
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await callerClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { tenantId } = await req.json();
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // 2. Verificar que o usuário pertence ao tenant
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.tenant_id !== tenantId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: integration } = await supabase
       .from("marketplace_integrations")
@@ -63,7 +97,7 @@ serve(async (req) => {
     const creds = integration.credentials as Record<string, string>;
     let accessToken = creds.access_token;
 
-    // Check token expiry — auto-refresh if needed
+    // Auto-refresh se token expirado
     if (creds.expires_at && new Date(creds.expires_at) <= new Date()) {
       console.log("Token expired, refreshing...");
       const ML_CLIENT_ID = Deno.env.get("ML_CLIENT_ID")!;
@@ -108,7 +142,6 @@ serve(async (req) => {
     }
 
     const authHeaders = { Authorization: `Bearer ${accessToken}` };
-
     const yesterday = new Date(Date.now() - 86400000).toISOString();
     const ordersRes = await mlFetchWithRetry(
       `https://api.mercadolibre.com/orders/search?seller=${creds.ml_user_id}&sort=date_desc&order.date_created.from=${yesterday}`,
@@ -126,7 +159,6 @@ serve(async (req) => {
 
     const ordersData = await ordersRes.json();
     const mlOrders = ordersData.results || [];
-
     let synced = 0;
 
     for (const mlOrder of mlOrders) {

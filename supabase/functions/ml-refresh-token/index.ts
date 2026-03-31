@@ -13,12 +13,46 @@ serve(async (req) => {
   }
 
   try {
+    // 1. Verificar autenticação
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await callerClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { tenantId } = await req.json();
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // 2. Verificar que o usuário pertence ao tenant
+    const supabase = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile || profile.tenant_id !== tenantId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: integration, error: fetchErr } = await supabase
       .from("marketplace_integrations")
@@ -35,7 +69,6 @@ serve(async (req) => {
     }
 
     const creds = integration.credentials as Record<string, string>;
-
     const ML_CLIENT_ID = Deno.env.get("ML_CLIENT_ID");
     const ML_CLIENT_SECRET = Deno.env.get("ML_CLIENT_SECRET");
 
@@ -87,9 +120,7 @@ serve(async (req) => {
           ...creds,
           access_token: newTokens.access_token,
           refresh_token: newTokens.refresh_token,
-          expires_at: new Date(
-            Date.now() + newTokens.expires_in * 1000
-          ).toISOString(),
+          expires_at: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
         },
         status: "connected",
       })
