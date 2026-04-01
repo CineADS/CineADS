@@ -1,7 +1,5 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { env } from "@/config/env";
-import { logger } from "@/lib/logger";
 
 
 interface MlbCategory {
@@ -19,17 +17,6 @@ interface SearchResult {
   limit: number;
 }
 
-interface CategoryNode {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  is_leaf: boolean;
-  depth: number;
-  path_from_root: Array<{ id: string; name: string }>;
-  site_id: string;
-  total_items_in_this_category: number;
-  updated_at: string;
-}
 
 const invokeApi = async (action: string, params: Record<string, string> = {}) => {
   const query = new URLSearchParams({ action, ...params }).toString();
@@ -81,100 +68,14 @@ export function useMlbCategories() {
     return invokeApi("sync-status");
   }, []);
 
-  const triggerSync = useCallback(async (tenantId: string) => {
+  const triggerSync = useCallback(async (_tenantId?: string) => {
     setLoading(true);
-    const startTime = Date.now();
-
     try {
-      // 1. Buscar token via Edge Function (bypassa RLS)
-      const anonKey = env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const supabaseUrl = env.VITE_SUPABASE_URL;
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const tokenRes = await fetch(`${supabaseUrl}/functions/v1/ml-get-token`, {
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`,
-          apikey: anonKey,
-        }
-      });
-
-      if (!tokenRes.ok) {
-        const err = await tokenRes.json();
-        throw new Error(err.error || "Mercado Livre não está conectado.");
-      }
-
-      const { access_token: accessToken } = await tokenRes.json();
-
-      const mlFetch = (url: string) => fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-
-      // 2. Buscar raízes
-      const rootRes = await mlFetch("https://api.mercadolibre.com/sites/MLB/categories");
-      if (!rootRes.ok) throw new Error(`HTTP ${rootRes.status} ao buscar categorias raiz`);
-      const roots = await rootRes.json();
-
-      logger.info("[MLB Sync] roots encontradas:", roots?.length);
-
-      const allCategories: any[] = [];
-
-      const fetchChildren = async (id: string, parentId: string | null, depth: number, path: Array<{id:string, name:string}>) => {
-        const res = await mlFetch(`https://api.mercadolibre.com/categories/${id}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        const currentPath = [...path, { id: data.id, name: data.name }];
-        const children = data.children_categories || [];
-        allCategories.push({
-          id: data.id, name: data.name, parent_id: parentId,
-          depth, is_leaf: children.length === 0,
-          path_from_root: currentPath, site_id: "MLB",
-          total_items_in_this_category: data.total_items_in_this_category || 0,
-          updated_at: new Date().toISOString(),
-        });
-        for (let i = 0; i < children.length; i += 5) {
-          await Promise.all(children.slice(i, i + 5).map((c: any) => fetchChildren(c.id, data.id, depth + 1, currentPath)));
-        }
-      };
-
-      for (let i = 0; i < roots.length; i += 5) {
-        await Promise.all(roots.slice(i, i + 5).map((r: any) => fetchChildren(r.id, null, 0, [])));
-      }
-
-      // 3. Upsert no banco
-      const CHUNK = 500;
-      for (let i = 0; i < allCategories.length; i += CHUNK) {
-        await supabase.from("mlb_categories").upsert(allCategories.slice(i, i + CHUNK), { onConflict: "id" });
-      }
-
-      const duration = (Date.now() - startTime) / 1000;
-
-      // 4. Salvar log (sem travar se falhar)
-      try {
-        await supabase.from("mlb_sync_logs").insert({
-          status: "success",
-          started_at: new Date(startTime).toISOString(),
-          finished_at: new Date().toISOString(),
-          total_processed: allCategories.length,
-          total_upserted: allCategories.length,
-          duration_seconds: duration,
-        });
-      } catch (logErr) {
-        logger.warn("[MLB Sync] Falha ao salvar log:", logErr);
-      }
-
-      return { success: true, total: allCategories.length };
-
-    } catch (err) {
-      try {
-        await supabase.from("mlb_sync_logs").insert({
-          status: "error",
-          started_at: new Date(startTime).toISOString(),
-          finished_at: new Date().toISOString(),
-          error_message: String(err),
-          duration_seconds: (Date.now() - startTime) / 1000,
-        });
-      } catch { /* ignorar falha de log */ }
-      throw err;
+      // Categorias do ML são públicas — delega para o edge function server-side
+      const { data, error } = await supabase.functions.invoke("mlb-sync-categories");
+      if (error) throw new Error(error.message || "Falha na sincronização");
+      if (!data?.success) throw new Error(data?.error || "Falha na sincronização");
+      return { success: true, total: data.total_upserted };
     } finally {
       setLoading(false);
     }

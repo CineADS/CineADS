@@ -30,7 +30,7 @@ serve(async (req) => {
       .from("profiles")
       .select("tenant_id")
       .eq("id", user.id)
-      .single()
+      .maybeSingle()
 
     if (!profile?.tenant_id) return new Response(JSON.stringify({ error: "Tenant não encontrado" }), { status: 404, headers: corsHeaders })
 
