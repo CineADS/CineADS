@@ -18,16 +18,13 @@ interface CategoryNode {
   updated_at: string
 }
 
-async function fetchWithRetry(url: string, retries = 3): Promise<any> {
+async function fetchWithRetry(url: string, accessToken: string, retries = 3): Promise<any> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, {
         headers: {
+          "Authorization": `Bearer ${accessToken}`,
           "Accept": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept-Language": "pt-BR,pt;q=0.9",
-          "Referer": "https://www.mercadolivre.com.br/",
-          "Origin": "https://www.mercadolivre.com.br",
         },
         signal: AbortSignal.timeout(15000),
       })
@@ -75,12 +72,13 @@ async function fetchCategoryTree(
   categoryId: string,
   parentId: string | null,
   depth: number,
-  pathFromRoot: Array<{ id: string; name: string }>
+  pathFromRoot: Array<{ id: string; name: string }>,
+  accessToken: string
 ): Promise<CategoryNode[]> {
   const result: CategoryNode[] = []
 
   try {
-    const data = await fetchWithRetry(`https://api.mercadolibre.com/categories/${categoryId}`)
+    const data = await fetchWithRetry(`https://api.mercadolibre.com/categories/${categoryId}`, accessToken)
     if (!data?.id) return result
 
     const currentPath = [...pathFromRoot, { id: data.id, name: data.name }]
@@ -100,10 +98,9 @@ async function fetchCategoryTree(
     })
 
     if (children.length > 0) {
-      // Fetch children with limited concurrency
       const childResults = await mapWithConcurrency(
         children,
-        (child: any) => fetchCategoryTree(child.id, data.id, depth + 1, currentPath),
+        (child: any) => fetchCategoryTree(child.id, data.id, depth + 1, currentPath, accessToken),
         3
       )
       for (const childNodes of childResults) {
@@ -125,6 +122,22 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   )
 
+  // Get a valid ML access token from any connected integration
+  const { data: integrations } = await supabase
+    .from("marketplace_integrations")
+    .select("credentials")
+    .eq("marketplace", "Mercado Livre")
+    .eq("status", "connected")
+    .limit(1)
+
+  const accessToken = (integrations?.[0]?.credentials as any)?.access_token
+  if (!accessToken) {
+    return new Response(JSON.stringify({ error: "Nenhuma integração Mercado Livre conectada. Conecte sua conta primeiro em Integrações." }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
+  }
+
   const { data: syncLog } = await supabase
     .from("mlb_sync_logs")
     .insert({ status: "running", started_at: new Date().toISOString() })
@@ -136,24 +149,22 @@ serve(async (req) => {
   try {
     console.log("[MLB Sync] Fetching root categories...")
 
-    // Step 1: Get root categories list
-    const rootList = await fetchWithRetry("https://api.mercadolibre.com/sites/MLB/categories")
+    const rootList = await fetchWithRetry("https://api.mercadolibre.com/sites/MLB/categories", accessToken)
     if (!Array.isArray(rootList) || rootList.length === 0) {
       throw new Error("No root categories returned from ML API")
     }
 
     console.log(`[MLB Sync] Found ${rootList.length} root categories. Fetching hierarchy...`)
 
-    // Step 2: Fetch full tree for each root category with limited concurrency
     const allCategories: CategoryNode[] = []
 
     const rootResults = await mapWithConcurrency(
       rootList,
       (root: any) => {
         console.log(`[MLB Sync] Fetching tree for: ${root.name} (${root.id})`)
-        return fetchCategoryTree(root.id, null, 0, [])
+        return fetchCategoryTree(root.id, null, 0, [], accessToken)
       },
-      5 // max 5 concurrent root-level fetches
+      5
     )
 
     for (const rootNodes of rootResults) {
@@ -162,10 +173,8 @@ serve(async (req) => {
 
     console.log(`[MLB Sync] ${allCategories.length} categories fetched. Upserting...`)
 
-    // Step 3: Sort by depth so parent_id references exist before children
     allCategories.sort((a, b) => a.depth - b.depth)
 
-    // Step 4: Upsert in chunks
     const CHUNK_SIZE = 500
     let totalUpserted = 0
 
