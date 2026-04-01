@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
+import { env } from "@/config/env";
 
 interface MlbCategory {
   id: string;
@@ -73,7 +73,8 @@ export function useMlbCategories() {
     try {
       // Categorias do ML são públicas — delega para o edge function server-side
       const { data, error } = await supabase.functions.invoke("mlb-sync-categories");
-      if (error) throw new Error(error.message || "Falha na sincronização");
+      // data is populated even on non-2xx; extract real error message
+      if (error) throw new Error((data as any)?.error || error.message || "Falha na sincronização");
       if (!data?.success) throw new Error(data?.error || "Falha na sincronização");
       return { success: true, total: data.total_upserted };
     } finally {
