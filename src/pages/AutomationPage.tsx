@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Zap, DollarSign, Bell } from "lucide-react";
+import { Zap, DollarSign, Plus } from "lucide-react";
 import { motion } from "framer-motion";
+import { CreateAutomationRuleDialog } from "@/components/automation/CreateAutomationRuleDialog";
+import { CreateRepricingRuleDialog } from "@/components/automation/CreateRepricingRuleDialog";
 
 const statusBadge: Record<string, { label: string; class: string }> = {
   active: { label: "Ativo", class: "bg-success/15 text-success border-success/30" },
@@ -18,6 +21,8 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 export default function AutomationPage() {
   const { profile } = useAuth();
   const tenantId = profile?.tenant_id;
+  const [automationOpen, setAutomationOpen] = useState(false);
+  const [repricingOpen, setRepricingOpen]   = useState(false);
 
   const { data: automationRules, isLoading: arLoading } = useQuery({
     queryKey: ["automation-rules", tenantId],
@@ -56,8 +61,11 @@ export default function AutomationPage() {
 
         <TabsContent value="automation" className="mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Regras de Automação ({automationRules?.length || 0})</CardTitle>
+              <Button size="sm" onClick={() => setAutomationOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Nova Regra
+              </Button>
             </CardHeader>
             <CardContent>
               {arLoading ? (
@@ -97,8 +105,11 @@ export default function AutomationPage() {
 
         <TabsContent value="repricing" className="mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Regras de Repricing ({repricingRules?.length || 0})</CardTitle>
+              <Button size="sm" onClick={() => setRepricingOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Nova Regra
+              </Button>
             </CardHeader>
             <CardContent>
               {rpLoading ? (
@@ -140,6 +151,9 @@ export default function AutomationPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <CreateAutomationRuleDialog open={automationOpen} onOpenChange={setAutomationOpen} />
+      <CreateRepricingRuleDialog  open={repricingOpen}  onOpenChange={setRepricingOpen} />
     </div>
   );
 }

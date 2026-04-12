@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
-import { Bell, PackageX, PauseCircle, Clock, AlertTriangle, ShieldAlert, Check, Inbox } from "lucide-react";
+import { useNotificationsRealtime } from "@/hooks/useNotificationsRealtime";
+import { Bell, PackageX, PauseCircle, Clock, AlertTriangle, ShieldAlert, Check, Inbox, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,11 +13,12 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 
 const typeIcons: Record<string, { icon: React.ElementType; className: string }> = {
-  stock_critical: { icon: PackageX, className: "text-destructive" },
-  listing_paused: { icon: PauseCircle, className: "text-warning" },
-  order_delayed: { icon: Clock, className: "text-warning" },
+  stock_critical:    { icon: PackageX,    className: "text-destructive" },
+  listing_paused:    { icon: PauseCircle, className: "text-warning" },
+  order_delayed:     { icon: Clock,       className: "text-warning" },
   integration_error: { icon: AlertTriangle, className: "text-destructive" },
-  order_risk: { icon: ShieldAlert, className: "text-warning" },
+  order_risk:        { icon: ShieldAlert, className: "text-warning" },
+  automation:        { icon: Zap,         className: "text-primary" },
 };
 
 export function NotificationsBell() {
@@ -24,6 +26,9 @@ export function NotificationsBell() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  // Realtime: recebe INSERT/UPDATE em tempo real, sem polling
+  useNotificationsRealtime(profile?.tenant_id);
 
   const { data: notifications = [] } = useQuery({
     queryKey: ["notifications-unread", profile?.tenant_id],
@@ -40,7 +45,6 @@ export function NotificationsBell() {
       return data;
     },
     enabled: !!profile?.tenant_id,
-    refetchInterval: 30000,
   });
 
   const markAllRead = async () => {

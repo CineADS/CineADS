@@ -1,5 +1,5 @@
 export const APP_CONFIG = {
-  APP_NAME: "Marketplace Hub",
+  APP_NAME: "CineADS",
   CACHE_TIME: 5 * 60 * 1000, // 5 min
   STALE_TIME: 2 * 60 * 1000, // 2 min
   SYNC_CONCURRENCY: 5,

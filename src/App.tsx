@@ -30,11 +30,11 @@ import IntegrationHealthPage from "./pages/IntegrationHealthPage";
 import CashFlowPage from "./pages/CashFlowPage";
 import PayablesPage from "./pages/PayablesPage";
 import ReceivablesPage from "./pages/ReceivablesPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import CompanySettingsPage from "./pages/CompanySettingsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import NotificationsSettingsPage from "./pages/NotificationsSettingsPage";
 import NotificationsPage from "./pages/NotificationsPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
 const MlbCategoriesPage = lazy(() => import("./pages/MlbCategoriesPage"));
@@ -103,6 +103,7 @@ const App = () => (
                 <Route path="/financial/cashflow" element={<CashFlowPage />} />
                 <Route path="/financial/payables" element={<PayablesPage />} />
                 <Route path="/financial/receivables" element={<ReceivablesPage />} />
+                <Route path="/financial/invoices" element={<InvoicesPage />} />
                 <Route path="/reports/sales" element={<Suspense fallback={<PageLoader />}><SalesReportPage /></Suspense>} />
                 <Route path="/reports/abc" element={<Suspense fallback={<PageLoader />}><AbcReportPage /></Suspense>} />
                 <Route path="/reports/heatmap" element={<Suspense fallback={<PageLoader />}><HeatmapReportPage /></Suspense>} />

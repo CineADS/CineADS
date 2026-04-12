@@ -67,6 +67,7 @@ const menuItems: MenuItem[] = [
       { label: "Fluxo de Caixa", path: "/financial/cashflow" },
       { label: "Contas a Pagar", path: "/financial/payables" },
       { label: "Contas a Receber", path: "/financial/receivables" },
+      { label: "Notas Fiscais", path: "/financial/invoices" },
     ],
   },
   {

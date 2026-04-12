@@ -13,7 +13,11 @@ const STATUS_MAP: Record<string, string> = {
   paid:              "paid",
   partially_paid:    "paid",
   confirmed:         "processing",
+  shipped:           "shipped",
+  delivered:         "delivered",
   cancelled:         "cancelled",
+  invalid:           "cancelled",
+  null_transaction:  "cancelled",
 };
 
 // ─── ML fetch with rate-limit retry ────────────────────────────────────────
@@ -192,7 +196,9 @@ serve(async (req) => {
     const supabaseUrl      = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey   = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const authHeader       = req.headers.get("Authorization") ?? "";
-    const isServiceRole    = authHeader === `Bearer ${serviceRoleKey}`;
+    const cronSecret       = Deno.env.get("CRON_SECRET");
+    const isServiceRole    = (cronSecret && authHeader === `Bearer ${cronSecret}`)
+                          || authHeader === `Bearer ${serviceRoleKey}`;
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 

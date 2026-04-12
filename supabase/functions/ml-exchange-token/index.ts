@@ -59,7 +59,7 @@ serve(async (req) => {
 
     const ML_CLIENT_ID = Deno.env.get("ML_CLIENT_ID");
     const ML_CLIENT_SECRET = Deno.env.get("ML_CLIENT_SECRET");
-    const ML_REDIRECT_URI = "https://cineads.lovable.app/auth/mercadolivre/callback";
+    const ML_REDIRECT_URI = "https://www.cineads.com.br/auth/mercadolivre/callback";
 
     if (!ML_CLIENT_ID || !ML_CLIENT_SECRET) {
       console.error("Missing ML env vars:", { ML_CLIENT_ID: !!ML_CLIENT_ID, ML_CLIENT_SECRET: !!ML_CLIENT_SECRET });

@@ -6,18 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Bell, PackageX, PauseCircle, Clock, AlertTriangle, ShieldAlert, CheckCheck, Inbox } from "lucide-react";
+import { Bell, PackageX, PauseCircle, Clock, AlertTriangle, ShieldAlert, CheckCheck, Inbox, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 const typeIcons: Record<string, { icon: React.ElementType; className: string; label: string }> = {
-  stock_critical: { icon: PackageX, className: "text-destructive", label: "Estoque Crítico" },
-  listing_paused: { icon: PauseCircle, className: "text-warning", label: "Anúncio Pausado" },
-  order_delayed: { icon: Clock, className: "text-warning", label: "Pedido Atrasado" },
-  integration_error: { icon: AlertTriangle, className: "text-destructive", label: "Erro Integração" },
-  order_risk: { icon: ShieldAlert, className: "text-warning", label: "Risco Pedido" },
+  stock_critical:    { icon: PackageX,     className: "text-destructive", label: "Estoque Crítico" },
+  listing_paused:    { icon: PauseCircle,  className: "text-warning",     label: "Anúncio Pausado" },
+  order_delayed:     { icon: Clock,        className: "text-warning",     label: "Pedido Atrasado" },
+  integration_error: { icon: AlertTriangle,className: "text-destructive", label: "Erro Integração" },
+  order_risk:        { icon: ShieldAlert,  className: "text-warning",     label: "Risco Pedido" },
+  automation:        { icon: Zap,          className: "text-primary",     label: "Automação" },
 };
 
 export default function NotificationsPage() {
@@ -77,6 +78,7 @@ export default function NotificationsPage() {
             <SelectTrigger className="w-44"><SelectValue placeholder="Tipo" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os Tipos</SelectItem>
+              <SelectItem value="automation">Automação</SelectItem>
               <SelectItem value="stock_critical">Estoque Crítico</SelectItem>
               <SelectItem value="listing_paused">Anúncio Pausado</SelectItem>
               <SelectItem value="order_delayed">Pedido Atrasado</SelectItem>

@@ -1,73 +1,47 @@
-# Welcome to your Lovable project
+# CineADS — Hub de Gestão para Marketplaces
 
-## Project info
+Plataforma SaaS multi-tenant para gestão de produtos, pedidos, estoque e integrações com marketplaces (Mercado Livre, Shopee, Amazon e mais).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Stack
 
-## How can I edit this code?
+- **Frontend:** React 18 + TypeScript + Vite + shadcn/ui + Tailwind CSS
+- **Backend:** Supabase (PostgreSQL + Auth + Edge Functions + Realtime)
+- **Formulários:** React Hook Form + Zod
+- **Estado/Cache:** TanStack Query v5
+- **Roteamento:** React Router v6
 
-There are several ways of editing your application.
+## Documentação
 
-**Use Lovable**
+| Arquivo | Descrição |
+|---|---|
+| [docs/setup.md](docs/setup.md) | Como rodar o projeto localmente |
+| [docs/arquitetura.md](docs/arquitetura.md) | Estrutura de pastas e decisões técnicas |
+| [docs/banco.md](docs/banco.md) | Schema do banco, migrações e Supabase |
+| [docs/deploy.md](docs/deploy.md) | Como fazer deploy (HostGator + Supabase) |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+## Início rápido
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# 1. Instalar dependências
+npm install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. Configurar variáveis de ambiente
+cp .env.example .env
+# Editar .env com os dados do seu projeto Supabase
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. Aplicar migrações no banco
+npx supabase link --project-ref <project-ref>
+npx supabase db push --include-all
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. Rodar localmente
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## Scripts disponíveis
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+| Comando | Descrição |
+|---|---|
+| `npm run dev` | Servidor de desenvolvimento (porta 8080) |
+| `npm run build` | Build de produção |
+| `npm run preview` | Preview do build |
+| `npm test` | Rodar testes |

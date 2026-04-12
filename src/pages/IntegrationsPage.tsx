@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useMercadoLivreIntegration } from "@/hooks/useMercadoLivreIntegration";
 import { toast } from "@/hooks/use-toast";
-import { ML_CONFIG } from "@/lib/mlConfig";
+import { ML_CONFIG } from "@/config/mlConfig";
 import {
   AlertDialog,
   AlertDialogAction,

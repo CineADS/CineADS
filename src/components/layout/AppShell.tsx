@@ -8,10 +8,12 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMLTokenRefresh } from "@/hooks/useMLTokenRefresh";
 import { useMLAutoSync } from "@/hooks/useMLAutoSync";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 
 export function AppShell() {
   useMLTokenRefresh();
   useMLAutoSync();
+  // Onboarding: aparece uma vez para usuários sem integração ML
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
@@ -64,6 +66,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      <OnboardingModal />
     </div>
   );
 }

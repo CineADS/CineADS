@@ -7,7 +7,7 @@ import { DollarSign, TrendingUp, TrendingDown, AlertTriangle } from "lucide-reac
 import { useMemo, useState } from "react";
 import { format, startOfMonth, endOfMonth, isAfter, subDays, eachDayOfInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell } from "recharts";
 import { Button } from "@/components/ui/button";
 
 export default function FinancialPage() {
@@ -53,6 +53,22 @@ export default function FinancialPage() {
     enabled: !!profile?.tenant_id,
   });
 
+  const { data: marketplaceOrders } = useQuery({
+    queryKey: ["financial-marketplace-chart", profile?.tenant_id, period],
+    queryFn: async () => {
+      if (!profile?.tenant_id) return [];
+      const { data, error } = await supabase
+        .from("orders")
+        .select("marketplace, total, status")
+        .eq("tenant_id", profile.tenant_id)
+        .gte("created_at", subDays(now, period).toISOString())
+        .in("status", ["paid", "processing", "shipped", "delivered"]);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.tenant_id,
+  });
+
   const { data: revenueOrders } = useQuery({
     queryKey: ["financial-revenue-chart", profile?.tenant_id, period],
     queryFn: async () => {
@@ -75,6 +91,28 @@ export default function FinancialPage() {
     const overdueReceivables = (receivables || []).filter((r) => r.status === "pending" && !isAfter(new Date(r.due_date), now)).reduce((s, r) => s + (Number(r.amount) || 0), 0);
     return { revenue, totalPayables, overduePayables, totalReceivables, overdueReceivables };
   }, [orders, payables, receivables]);
+
+  const MARKETPLACE_COLORS: Record<string, string> = {
+    "Mercado Livre": "hsl(var(--primary))",
+    "Shopee":        "#f97316",
+    "Amazon":        "#eab308",
+    "Magalu":        "#3b82f6",
+    "Americanas":    "#ef4444",
+    "Shopify":       "#22c55e",
+  };
+
+  const marketplaceChartData = useMemo(() => {
+    const map: Record<string, { receita: number; pedidos: number }> = {};
+    for (const o of marketplaceOrders || []) {
+      const key = o.marketplace || "Outros";
+      if (!map[key]) map[key] = { receita: 0, pedidos: 0 };
+      map[key].receita += Number(o.total) || 0;
+      map[key].pedidos += 1;
+    }
+    return Object.entries(map)
+      .map(([marketplace, v]) => ({ marketplace, ...v }))
+      .sort((a, b) => b.receita - a.receita);
+  }, [marketplaceOrders]);
 
   const revenueChartData = useMemo(() => {
     const days = eachDayOfInterval({ start: subDays(now, period), end: now });
@@ -141,15 +179,71 @@ export default function FinancialPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Marketplace Profit Chart */}
+      {/* Marketplace Revenue Chart */}
       <div className="rounded-xl border border-border bg-card p-6">
-        <h3 className="text-sm font-semibold mb-4">Lucro por Marketplace</h3>
-        <div className="flex items-center justify-center py-12 text-center">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-muted-foreground text-sm">Conecte seus marketplaces para ver dados reais</p>
-            <p className="text-xs text-muted-foreground mt-1">Os dados aparecerão automaticamente após a integração</p>
+            <h3 className="text-sm font-semibold">Receita por Marketplace</h3>
+            <p className="text-xs text-muted-foreground">Pedidos pagos, processando, enviados e entregues</p>
           </div>
         </div>
+
+        {marketplaceChartData.length === 0 ? (
+          <div className="flex items-center justify-center py-12 text-center">
+            <div>
+              <p className="text-muted-foreground text-sm">Nenhum pedido no período selecionado</p>
+              <p className="text-xs text-muted-foreground mt-1">Os dados aparecem automaticamente após a sincronização</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={marketplaceChartData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="marketplace" className="text-xs" tick={{ fontSize: 12 }} />
+                <YAxis
+                  className="text-xs"
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
+                  tick={{ fontSize: 11 }}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) =>
+                    name === "receita" ? [fmt(value), "Receita"] : [value, "Pedidos"]
+                  }
+                  contentStyle={{ borderRadius: "8px", border: "1px solid var(--border)", fontSize: 12 }}
+                />
+                <Legend formatter={(v) => v === "receita" ? "Receita" : "Pedidos"} />
+                <Bar dataKey="receita" radius={[4, 4, 0, 0]}>
+                  {marketplaceChartData.map((entry) => (
+                    <Cell
+                      key={entry.marketplace}
+                      fill={MARKETPLACE_COLORS[entry.marketplace] ?? "hsl(var(--primary))"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+
+            {/* Tabela resumo */}
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {marketplaceChartData.map((entry) => (
+                <div key={entry.marketplace} className="rounded-lg border border-border bg-muted/30 px-3 py-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full shrink-0"
+                      style={{ background: MARKETPLACE_COLORS[entry.marketplace] ?? "hsl(var(--primary))" }}
+                    />
+                    <span className="text-xs font-medium truncate">{entry.marketplace}</span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs font-semibold">{fmt(entry.receita)}</p>
+                    <p className="text-[10px] text-muted-foreground">{entry.pedidos} pedido{entry.pedidos !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

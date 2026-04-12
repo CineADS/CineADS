@@ -141,9 +141,12 @@ serve(async (req) => {
   const supabaseUrl    = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-  // Apenas service role pode chamar esta função
+  // Apenas chamadas internas (cron) podem chamar esta função
+  const cronSecret = Deno.env.get("CRON_SECRET");
   const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${serviceRoleKey}`) {
+  const allowed = (cronSecret && auth === `Bearer ${cronSecret}`)
+               || auth === `Bearer ${serviceRoleKey}`;
+  if (!allowed) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
