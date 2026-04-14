@@ -83,6 +83,7 @@ const menuItems: MenuItem[] = [
       { label: "Empresa", path: "/settings/company" },
       { label: "Usuários", path: "/settings/users", requireAdmin: true },
       { label: "Notificações", path: "/settings/notifications" },
+      { label: "Minha Loja", path: "/settings/store" },
     ],
   },
 ];

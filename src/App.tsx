@@ -34,6 +34,7 @@ import InvoicesPage from "./pages/InvoicesPage";
 import CompanySettingsPage from "./pages/CompanySettingsPage";
 import UsersSettingsPage from "./pages/UsersSettingsPage";
 import NotificationsSettingsPage from "./pages/NotificationsSettingsPage";
+import MyStorePage from "./pages/MyStorePage";
 import NotificationsPage from "./pages/NotificationsPage";
 import NotFound from "./pages/NotFound";
 
@@ -111,6 +112,7 @@ const App = () => (
                 <Route path="/settings/company" element={<CompanySettingsPage />} />
                 <Route path="/settings/users" element={<UsersSettingsPage />} />
                 <Route path="/settings/notifications" element={<NotificationsSettingsPage />} />
+                <Route path="/settings/store" element={<MyStorePage />} />
                 <Route path="/settings/mlb-categories" element={<Suspense fallback={<PageLoader />}><MlbCategoriesPage /></Suspense>} />
                 <Route path="/notifications" element={<NotificationsPage />} />
               </Route>

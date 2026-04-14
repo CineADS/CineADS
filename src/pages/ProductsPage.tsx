@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { productsService } from "@/services/products.service";
 import { marketplaceService } from "@/services/marketplace.service";
 import { useAuth } from "@/lib/auth";
@@ -12,7 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Package, Trash2, Play, Pause, X, FilterX, DollarSign } from "lucide-react";
+import { Plus, Search, Package, Trash2, Play, Pause, X, FilterX, DollarSign, Store } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -151,6 +153,19 @@ export default function ProductsPage() {
     queryClient.invalidateQueries({ queryKey: ["products"] });
   };
 
+  const toggleStoreVisible = useMutation({
+    mutationFn: async ({ id, value }: { id: string; value: boolean }) => {
+      const { error } = await supabase
+        .from("products")
+        .update({ store_visible: value })
+        .eq("id", id)
+        .eq("tenant_id", profile!.tenant_id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["products"] }),
+    onError: () => toast.error("Erro ao atualizar visibilidade"),
+  });
+
   return (
     <div className="space-y-6">
       <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -232,15 +247,18 @@ export default function ProductsPage() {
               <TableHead>Preço</TableHead>
               <TableHead>Estoque</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="hidden md:table-cell">
+                <div className="flex items-center gap-1.5"><Store className="h-3.5 w-3.5" /> Loja</div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+              <TableRow><TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto mb-2" />Carregando...
               </TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-12">
+              <TableRow><TableCell colSpan={7} className="text-center py-12">
                 <Package className="mx-auto h-10 w-10 text-muted-foreground mb-2" /><p className="text-muted-foreground">Nenhum produto encontrado</p>
               </TableCell></TableRow>
             ) : (
@@ -277,6 +295,7 @@ export default function ProductsPage() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Link to="/products/price-rules">
+
                                 <Badge variant="outline" className="text-xs bg-yellow-500/15 text-yellow-600 border-yellow-500/30 cursor-pointer">
                                   <DollarSign className="h-3 w-3 mr-0.5" />Regra
                                 </Badge>
@@ -286,6 +305,22 @@ export default function ProductsPage() {
                           </Tooltip>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div>
+                            <Switch
+                              checked={!!product.store_visible}
+                              disabled={!canEditProducts || toggleStoreVisible.isPending}
+                              onCheckedChange={(v) => toggleStoreVisible.mutate({ id: product.id, value: v })}
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">{product.store_visible ? "Visível na loja" : "Oculto na loja"}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 );
