@@ -1,11 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Permite requests da vitrine pública (qualquer origem por enquanto)
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Origens permitidas: vitrine pública nas duas URLs (Vercel + domínio futuro)
+const ALLOWED_ORIGINS = [
+  "https://cineads-loja.vercel.app",
+  "https://loja.cineads.com.br",
+];
+
+function corsHeaders(origin: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 interface CheckoutItem {
   product: { id: string; title: string; price: number };
@@ -21,11 +29,21 @@ interface CheckoutBody {
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const origin = req.headers.get("origin");
+  const cors = corsHeaders(origin);
+
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
   try {
     const body: CheckoutBody = await req.json();
     const { tenant_id, items, customer, payment_method, total } = body;
+
+    // Helper local para que cors esteja em escopo
+    const json = (data: unknown, status = 200) =>
+      new Response(JSON.stringify(data), {
+        status,
+        headers: { ...cors, "Content-Type": "application/json" },
+      });
 
     if (!tenant_id || !items?.length || !customer?.name || !customer?.email || !total) {
       return json({ error: "Dados incompletos" }, 400);
@@ -148,13 +166,9 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("store-checkout:", err);
-    return json({ error: "Erro interno. Tente novamente." }, 500);
+    return new Response(JSON.stringify({ error: "Erro interno. Tente novamente." }), {
+      status: 500,
+      headers: { ...corsHeaders(origin), "Content-Type": "application/json" },
+    });
   }
 });
-
-function json(data: unknown, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
