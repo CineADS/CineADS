@@ -74,14 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          setTimeout(async () => {
-            if (!mounted) return;
-            const profileData = await fetchProfile(newSession.user.id);
-            if (mounted) {
-              setProfile(profileData);
-              setLoading(false);
-            }
-          }, 0);
+          const profileData = await fetchProfile(newSession.user.id);
+          if (mounted) {
+            setProfile(profileData);
+            setLoading(false);
+          }
         } else {
           setProfile(null);
           setLoading(false);

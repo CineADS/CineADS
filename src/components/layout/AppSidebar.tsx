@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import {
   LayoutDashboard, Package, ShoppingCart, Warehouse, Plug,
   DollarSign, BarChart2, Settings, ChevronDown, ChevronLeft, ChevronRight,
-  BookOpen, Activity, Zap, AlertTriangle,
+  BookOpen,
 } from "lucide-react";
 
 interface MenuItem {
@@ -27,7 +27,7 @@ const menuItems: MenuItem[] = [
     label: "Pedidos", icon: ShoppingCart, children: [
       { label: "Todos os Pedidos", path: "/orders" },
       { label: "Picking & Packing", path: "/orders/picking" },
-      { label: "Devoluções", path: "/orders/returns" },
+      // Devoluções: em breve
     ],
   },
   {
@@ -59,15 +59,12 @@ const menuItems: MenuItem[] = [
       { label: "Saúde", path: "/integrations/health" },
     ],
   },
-  { label: "Operações", icon: AlertTriangle, path: "/operations" },
-  { label: "Automação", icon: Zap, path: "/automation" },
   {
     label: "Financeiro", icon: DollarSign, requireFinancial: true, children: [
       { label: "Visão Geral", path: "/financial" },
       { label: "Fluxo de Caixa", path: "/financial/cashflow" },
-      { label: "Contas a Pagar", path: "/financial/payables" },
-      { label: "Contas a Receber", path: "/financial/receivables" },
       { label: "Notas Fiscais", path: "/financial/invoices" },
+      // Contas a Pagar / Receber: em breve
     ],
   },
   {
@@ -86,6 +83,7 @@ const menuItems: MenuItem[] = [
       { label: "Minha Loja", path: "/settings/store" },
     ],
   },
+  // Automação e Operações: em breve
 ];
 
 export function AppSidebar() {

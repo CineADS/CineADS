@@ -66,6 +66,10 @@ export default function PickingPackingPage() {
   const areAllItemsChecked = (orderItems: any[]) => orderItems.every((item: any) => checkedItems[item.id]);
 
   const handleAdvanceStatus = (orderId: string, currentStatus: string) => {
+    if (currentStatus !== "paid" && currentStatus !== "processing") {
+      toast.error("Status do pedido não permite esta ação.");
+      return;
+    }
     const nextStatus = currentStatus === "paid" ? "processing" : "shipped";
     updateStatus.mutate({ orderId, status: nextStatus });
   };

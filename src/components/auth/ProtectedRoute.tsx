@@ -29,6 +29,17 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (!profile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto" />
+          <p className="text-sm text-muted-foreground">Carregando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (profile?.status === "inactive") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">

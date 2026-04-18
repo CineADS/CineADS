@@ -30,6 +30,8 @@ export default function LoginPage() {
     setLoading(false);
     if (error) {
       toast.error(error.message);
+    } else {
+      navigate("/dashboard", { replace: true });
     }
   };
 
